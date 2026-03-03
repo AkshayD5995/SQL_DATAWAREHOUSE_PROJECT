@@ -1,0 +1,128 @@
+/* ============================================================
+   DATA QUALITY VALIDATION SCRIPT
+   Purpose:
+   Perform validation checks on Bronze layer before 
+   loading into Silver layer.
+
+   Checks Included:
+   - Primary Key Validation
+   - Duplicate Detection
+   - Null Checks
+   - Whitespace Detection
+   - Data Type Validation
+   - Business Rule Validation
+   - Date Integrity Checks
+   - Negative / Invalid Value Detection
+============================================================ */
+
+USE DataWarehouse;
+GO
+
+/* ============================================================
+   1️⃣ CRM_CUST_INFO – CUSTOMER VALIDATION
+============================================================ */
+
+PRINT '===== CRM_CUST_INFO QUALITY CHECK =====';
+
+-- Check Primary Key NULL
+SELECT *
+FROM bronze.CRM_CUST_INFO
+WHERE CST_ID IS NULL;
+
+-- Check Duplicate Customers
+SELECT CST_ID, COUNT(*) AS Duplicate_Count
+FROM bronze.CRM_CUST_INFO
+GROUP BY CST_ID
+HAVING COUNT(*) > 1;
+
+-- Check Unwanted Spaces
+SELECT CST_FIRSTNAME
+FROM bronze.CRM_CUST_INFO
+WHERE CST_FIRSTNAME <> TRIM(CST_FIRSTNAME);
+
+-- Check Gender Values
+SELECT DISTINCT CST_GENDER
+FROM bronze.CRM_CUST_INFO;
+
+-- Check Marital Status
+SELECT DISTINCT CST_MARETIAL_STATUS
+FROM bronze.CRM_CUST_INFO;
+
+
+
+/* ============================================================
+   2️⃣ CRM_PROD_INFO – PRODUCT VALIDATION
+============================================================ */
+
+PRINT '===== CRM_PROD_INFO QUALITY CHECK =====';
+
+-- Check Duplicate Product ID
+SELECT PRD_ID, COUNT(*)
+FROM bronze.CRM_PROD_INFO
+GROUP BY PRD_ID
+HAVING COUNT(*) > 1;
+
+-- Check Negative or NULL Cost
+SELECT *
+FROM bronze.CRM_PROD_INFO
+WHERE PRD_COST < 0 OR PRD_COST IS NULL;
+
+-- Check Unwanted Spaces
+SELECT PRD_NAME
+FROM bronze.CRM_PROD_INFO
+WHERE PRD_NAME <> TRIM(PRD_NAME);
+
+-- Check Product Line Values
+SELECT DISTINCT PRD_LINE
+FROM bronze.CRM_PROD_INFO;
+
+-- Date Integrity Check
+SELECT *
+FROM bronze.CRM_PROD_INFO
+WHERE PRD_END_DATE < PRD_START_DATE;
+
+
+
+/* ============================================================
+   3️⃣ CRM_SALE_DETAILS – SALES VALIDATION
+============================================================ */
+
+PRINT '===== CRM_SALE_DETAILS QUALITY CHECK =====';
+
+-- Check Order Number NULL
+SELECT *
+FROM bronze.CRM_SALE_DETAILS
+WHERE SLS_ORD_NUM IS NULL;
+
+-- Validate Date Conversion
+SELECT SLS_ORDER_DT,
+       TRY_CONVERT(DATE, CAST(SLS_ORDER_DT AS VARCHAR(8))) AS Converted_Order_Date
+FROM bronze.CRM_SALE_DETAILS
+WHERE TRY_CONVERT(DATE, CAST(SLS_ORDER_DT AS VARCHAR(8))) IS NULL;
+
+-- Check Negative / Null Price
+SELECT *
+FROM bronze.CRM_SALE_DETAILS
+WHERE SLS_PRICE IS NULL OR SLS_PRICE <= 0;
+
+-- Check Sales Calculation Mismatch
+SELECT *
+FROM bronze.CRM_SALE_DETAILS
+WHERE SLS_SALES IS NULL
+   OR SLS_SALES <= 0
+   OR SLS_SALES <> SLS_QUANTITY * ABS(SLS_PRICE);
+
+
+
+/* ============================================================
+   4️⃣ ERP_CUST_AZ12 – CUSTOMER MASTER VALIDATION
+============================================================ */
+
+PRINT '===== ERP_CUST_AZ12 QUALITY CHECK =====';
+
+-- Check NAS Prefix
+SELECT *
+FROM bronze.ERP_CUST_AZ12
+WHERE CID LIKE 'NAS%';
+
+-- Check Future or Invalid Birt
