@@ -1,1 +1,334 @@
+/* IN THIS SCRIPT WE INSERT VALUE INTO SILVER.C[CRM_CUST_INFO]
+FROM BRONZE.[CRM_CUST_INFO] WITH CLEANING 
+REMOVE UNNECESSARY SPACE TO ENSURE DATA CONSISTENCY AND
+UNIFORMITY ACRROS ALL RECORDS
+DATA NORMALISE  & STANDARDISATION 
+MAPS CODESD VALUE TO MEANSINGFULL ,USER FREINDLY DESCRIPTIONS 
+LIKE GENDER F,HTEN CONVERT FEMALE
+HANDLING MISSING VALUE LIKE FILL IN THE BLANKS BY ADDING A DEFAULT VALUE
+REMOVE DUPLICATE ONLY ONE RECORD  PER ENTITY BY IDENTIFYING AND REATIN THE MOST RELEVANT ROW
+
+*/
+/* ============================================================
+   SILVER LAYER TRANSFORMATION
+   ------------------------------------------------------------
+   - Data Cleaning
+   - Standardization
+   - Normalization
+   - Duplicate Removal
+   - Data Validation
+   - Business Rule Enforcement
+============================================================ */
+
+USE DataWarehouse;
+GO
+
+/* ============================================================
+   1️⃣ CRM_CUST_INFO
+============================================================ */
+CREATE OR ALTER PROCEDURE SILVER.LOAD_SILVER
+AS
+BEGIN 
+   DECLARE @START_TIME DATETIME,
+           @END_TIME DATETIME,
+           @BATCH_START_TIME DATETIME,
+           @BATCH_END_TIME DATETIME
+
+  
+   SET @BATCH_START_TIME=GETDATE();
+
+   BEGIN TRY
+    PRINT'================'
+    PRINT'LOADING SILVER LAYER'
+    PRINT'================'
+
+    PRINT '----------------'
+    PRINT'LOADING CRM TABLES'
+    PRINT '----------------'
+
+    SET @START_TIME=GETDATE();
+    PRINT '>> TRUNCATING TABLE [Silver].[CRM_CUST_INFO]';
+    TRUNCATE TABLE [Silver].[CRM_CUST_INFO];
+
+PRINT '>> INSERTING CLEAN DATA INTO [Silver].[CRM_CUST_INFO]';
+
+INSERT INTO [Silver].[CRM_CUST_INFO]
+(
+    CST_ID,
+    CST_KEY,
+    CST_FIRSTNAME,
+    CST_LASTNAME,
+    CST_MARETIAL_STATUS,
+    CST_GENDER,
+    CST_CREATE_DATE
+)
+SELECT
+    CST_ID,
+    CST_KEY,
+    TRIM(CST_FIRSTNAME),
+    TRIM(CST_LASTNAME),
+
+    -- Normalize Marital Status
+    CASE 
+        WHEN UPPER(TRIM(CST_MARETIAL_STATUS)) = 'M' THEN 'MARRIED'
+        WHEN UPPER(TRIM(CST_MARETIAL_STATUS)) = 'S' THEN 'SINGLE'
+        ELSE 'NA'
+    END,
+
+    -- Normalize Gender
+    CASE
+        WHEN UPPER(TRIM(CST_GENDER)) = 'M' THEN 'MALE'
+        WHEN UPPER(TRIM(CST_GENDER)) = 'F' THEN 'FEMALE'
+        ELSE 'N/A'
+    END,
+
+    CST_CREATE_DATE
+FROM
+(
+    SELECT *,
+           ROW_NUMBER() OVER (PARTITION BY CST_ID ORDER BY CST_CREATE_DATE DESC) AS RN
+    FROM [bronze].[CRM_CUST_INFO]
+    WHERE CST_ID IS NOT NULL
+) T
+WHERE RN = 1;
+
+ SET @END_TIME=GETDATE();
+    PRINT'>>LOAD DURATION:'+cast(datediff(second,@start_time,@end_time)as nvarchar)+'second'
+    print'>>>'
+
+
+/* ============================================================
+   2️⃣ CRM_PROD_INFO
+============================================================ */
+   set @START_TIME=GETDATE();
+
+PRINT '>> TRUNCATING TABLE [Silver].[CRM_PROD_INFO]';
+TRUNCATE TABLE [Silver].[CRM_PROD_INFO];
+
+PRINT '>> INSERTING CLEAN DATA INTO [Silver].[CRM_PROD_INFO]';
+
+INSERT INTO [Silver].[CRM_PROD_INFO]
+(
+    PRD_ID,
+    CAT_ID,
+    PRD_KEY,
+    PRD_NAME,
+    PRD_COST,
+    PRD_LINE,
+    PRD_START_DATE,
+    PRD_END_DATE
+)
+SELECT
+    PRD_ID,
+
+    -- Extract Category ID
+    REPLACE(SUBSTRING(PRD_KEY,1,5),'_','-'),
+
+    -- Extract Product Key
+    SUBSTRING(PRD_KEY,7,LEN(PRD_KEY)),
+
+    PRD_NAME,
+    ISNULL(PRD_COST,0),
+
+    -- Map Product Line
+    CASE
+        WHEN UPPER(TRIM(PRD_LINE)) = 'M' THEN 'MOUNTAIN'
+        WHEN UPPER(TRIM(PRD_LINE)) = 'R' THEN 'ROAD'
+        WHEN UPPER(TRIM(PRD_LINE)) = 'S' THEN 'OTHER SALES'
+        WHEN UPPER(TRIM(PRD_LINE)) = 'T' THEN 'TOURING'
+        ELSE 'NA'
+    END,
+
+    PRD_START_DATE,
+
+    -- Calculate End Date
+    DATEADD(
+        DAY,
+        -1,
+        LEAD(PRD_START_DATE) 
+        OVER (PARTITION BY PRD_KEY ORDER BY PRD_START_DATE)
+    )
+
+FROM [bronze].[CRM_PROD_INFO];
+
+   SET @END_TIME=GETDATE();
+    PRINT 'LOAD DURATION'+CAST(DATEDIFF(SECOND,@START_TIME,@END_TIME) AS NVARCHAR)+'SECOND';
+
+
+/* ============================================================
+   3️⃣ CRM_SALE_DETAILS
+============================================================ */
+SET @START_TIME=GETDATE();
+PRINT '>> TRUNCATING TABLE [Silver].[CRM_SALE_DETAILS]';
+TRUNCATE TABLE [Silver].[CRM_SALE_DETAILS];
+
+PRINT '>> INSERTING CLEAN DATA INTO [Silver].[CRM_SALE_DETAILS]';
+
+INSERT INTO [Silver].[CRM_SALE_DETAILS]
+(
+    SLS_ORD_NUM,
+    SLS_PROD_KEY,
+    SLS_CUST_ID,
+    SLS_ORDER_DT,
+    SLS_SHIP_DT,
+    SLS_DUE_DT,
+    SLS_SALES,
+    SLS_QUANTITY,
+    SLS_PRICE
+)
+SELECT
+    SLS_ORD_NUM,
+    SLS_PROD_KEY,
+    SLS_CUST_ID,
+
+    TRY_CONVERT(DATE, CAST(SLS_ORDER_DT AS VARCHAR(8))),
+    TRY_CONVERT(DATE, CAST(SLS_SHIP_DT AS VARCHAR(8))),
+    TRY_CONVERT(DATE, CAST(SLS_DUE_DT  AS VARCHAR(8))),
+
+    -- Validate Sales
+    CASE 
+        WHEN SLS_SALES IS NULL 
+             OR SLS_SALES <= 0 
+             OR SLS_SALES <> SLS_QUANTITY * ABS(SLS_PRICE)
+        THEN SLS_QUANTITY * ABS(SLS_PRICE)
+        ELSE SLS_SALES
+    END,
+
+    SLS_QUANTITY,
+
+    -- Validate Price
+    CASE
+        WHEN SLS_PRICE IS NULL OR SLS_PRICE <= 0
+        THEN SLS_SALES / NULLIF(SLS_QUANTITY,0)
+        ELSE SLS_PRICE
+    END
+
+FROM [bronze].[CRM_SALE_DETAILS];
+
+   SET @END_TIME=GETDATE();
+    PRINT 'LOAD DURATION'+CAST(DATEDIFF(SECOND,@START_TIME,@END_TIME) AS NVARCHAR)+'SECOND';
+
+
+/* ============================================================
+   4️⃣ ERP_CUST_AZ12
+============================================================ */
+SET @START_TIME = GETDATE();
+PRINT '>> TRUNCATING TABLE [Silver].[ERP_CUST_AZ12]';
+TRUNCATE TABLE [Silver].[ERP_CUST_AZ12];
+
+INSERT INTO [Silver].[ERP_CUST_AZ12]
+(
+    CID,
+    BDATE,
+    GEN
+)
+SELECT
+    -- Remove NAS prefix
+    CASE 
+        WHEN CID LIKE 'NAS%' THEN SUBSTRING(CID,4,LEN(CID))
+        ELSE CID
+    END,
+
+    -- Remove future birthdates
+    CASE 
+        WHEN BDATE > GETDATE() THEN NULL
+        ELSE BDATE
+    END,
+
+    -- Normalize Gender
+    CASE
+        WHEN UPPER(TRIM(GEN)) IN ('F','FEMALE') THEN 'Female'
+        WHEN UPPER(TRIM(GEN)) IN ('M','MALE')   THEN 'Male'
+        ELSE 'N/A'
+    END
+
+FROM [bronze].[ERP_CUST_AZ12];
+
+  SET @END_TIME=GETDATE();
+  PRINT 'LOAD DURATION'+CAST(DATEDIFF(SECOND,@START_TIME,@END_TIME) AS NVARCHAR)+'SECOND';
+
+
+
+/* ============================================================
+   5️⃣ ERP_LOC_A101
+============================================================ */
+SET @START_TIME=GETDATE();
+
+PRINT '>> TRUNCATING TABLE [Silver].[ERP_LOC_A101]';
+TRUNCATE TABLE [Silver].[ERP_LOC_A101];
+
+INSERT INTO [Silver].[ERP_LOC_A101]
+(
+    CID,
+    COUNTRY
+)
+SELECT
+    REPLACE(CID,'_',''),
+
+    CASE 
+        WHEN UPPER(TRIM(COUNTRY)) IN ('US','USA','UNITED STATES')
+            THEN 'United States'
+        WHEN TRIM(COUNTRY) = '' OR COUNTRY IS NULL
+            THEN 'N/A'
+        ELSE COUNTRY
+    END
+
+FROM [bronze].[ERP_LOC_A101];
+
+   SET @END_TIME=GETDATE();
+   PRINT 'LOAD DURATION'+CAST(DATEDIFF(SECOND,@START_TIME,@END_TIME) AS NVARCHAR)+'SECOND';
+
+
+
+/* ============================================================
+   6️⃣ ERP_PX_CAT_G1V2
+============================================================ */
+SET @START_TIME=GETDATE()
+
+PRINT '>> TRUNCATING TABLE [Silver].[ERP_PX_CAT_G1V2]';
+TRUNCATE TABLE [Silver].[ERP_PX_CAT_G1V2];
+
+INSERT INTO [Silver].[ERP_PX_CAT_G1V2]
+(
+    ID,
+    CAT,
+    SUBCAT,
+    MAINTENANCE
+)
+SELECT
+    ID,
+    CAT,
+    SUBCAT,
+    MAINTENANCE
+FROM [bronze].[ERP_PX_CAT_G1V2]
+
+
+   SET @END_TIME=GETDATE();
+    PRINT 'LOAD DURATION'+CAST(DATEDIFF(SECOND,@START_TIME,@END_TIME) AS NVARCHAR)+'SECOND';
+ 
+        /* ===============================
+           BATCH LOAD TIME
+        =============================== */
+        SET @BATCH_END_TIME = GETDATE();
+
+        PRINT '====================================';
+        PRINT 'TOTAL BATCH LOAD TIME: ' 
+              + CAST(DATEDIFF(SECOND, @BATCH_START_TIME, @BATCH_END_TIME) AS NVARCHAR) + ' sec';
+        PRINT '====================================';
+
+    END TRY
+
+    BEGIN CATCH
+        PRINT '====================================';
+        PRINT 'ERROR OCCURRED DURING SILVER LOAD';
+        PRINT ERROR_MESSAGE();
+        PRINT CAST(ERROR_NUMBER() AS NVARCHAR(50));
+        PRINT CAST(ERROR_STATE() AS NVARCHAR(50));
+        PRINT '====================================';
+    END CATCH
+
+END;
+ EXEC Silver.LOAD_SILVER;
+
+
 
