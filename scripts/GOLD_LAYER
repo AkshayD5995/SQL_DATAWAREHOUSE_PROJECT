@@ -1,0 +1,142 @@
+/* ============================================================
+   GOLD LAYER – BUSINESS READY DATA MODEL
+
+   PURPOSE:
+   The Gold layer represents the final stage of the data
+   warehouse where cleaned and transformed data from the
+   Silver layer is structured into analytics-ready tables.
+
+   This script creates Dimension and Fact views that support
+   business reporting, dashboards, and analytical workloads.
+
+   OBJECTIVES:
+   - Provide a star schema model for reporting
+   - Create dimension tables for descriptive business entities
+   - Create fact tables for measurable business transactions
+   - Simplify data consumption for BI tools such as Power BI
+
+   COMPONENTS:
+
+   1. dim_customers
+      - Customer master information
+      - Includes demographic attributes such as gender,
+        birth date, and location
+      - Combines CRM and ERP customer data
+
+   2. dim_products
+      - Product master information
+      - Includes product category, subcategory,
+        maintenance type, and cost
+      - Filters only active products
+
+   3. fact_sales
+      - Transactional sales data
+      - Links customers and products via surrogate keys
+      - Contains measures such as sales amount, quantity,
+        and price
+
+   DATA MODEL DESIGN:
+   - Star schema architecture
+   - Dimension tables describe entities
+   - Fact table stores transactional metrics
+   - Surrogate keys are generated for optimized joins
+
+   DATA SOURCE FLOW:
+   Raw Data → Bronze Layer → Silver Layer → Gold Layer
+
+   BENEFITS:
+   - Business-ready dataset for reporting
+   - Improved query performance
+   - Consistent and reliable analytics model
+   - Simplified integration with BI tools
+
+============================================================ */
+
+
+USE DataWarehouse;
+GO
+
+
+
+CREATE OR ALTER VIEW gold.dim_customers AS
+
+SELECT 
+    ROW_NUMBER() OVER (ORDER BY ci.CST_ID)        AS customer_key,
+
+    ci.CST_ID                                     AS customer_id,
+    ci.CST_KEY                                    AS customer_number,
+    ci.CST_FIRSTNAME                              AS first_name,
+    ci.CST_LASTNAME                               AS last_name,
+    ci.CST_MARETIAL_STATUS                        AS marital_status,
+
+    -- Gender normalization
+    CASE 
+        WHEN ci.CST_GENDER <> 'N/A' THEN ci.CST_GENDER
+        ELSE COALESCE(ca.GEN,'N/A')
+    END                                           AS gender,
+
+    ci.CST_CREATE_DATE                            AS create_date,
+    ca.BDATE                                      AS birth_date,
+    la.COUNTRY                                    AS country
+
+FROM silver.CRM_CUST_INFO ci
+
+LEFT JOIN silver.ERP_CUST_AZ12 ca
+       ON ca.CID = ci.CST_KEY
+
+LEFT JOIN silver.ERP_LOC_A101 la
+       ON la.CID = ci.CST_KEY;
+
+
+
+       CREATE OR ALTER VIEW gold.dim_products AS
+
+SELECT 
+    ROW_NUMBER() OVER (ORDER BY pn.PRD_START_DATE, pn.PRD_KEY) AS product_key,
+
+    pn.PRD_ID                       AS product_id,
+    pn.PRD_KEY                      AS product_number,
+    pn.PRD_NAME                     AS product_name,
+
+    pn.cat_id                       AS category_id,
+    pc.CAT                          AS category,
+    pc.SUBCAT                       AS sub_category,
+    pc.MAINTENANCE                  AS maintenance_type,
+
+    pn.PRD_COST                     AS cost,
+    pn.PRD_LINE                     AS product_line,
+    pn.PRD_START_DATE               AS start_date
+
+FROM silver.CRM_PROD_INFO pn
+
+LEFT JOIN silver.ERP_PX_CAT_G1V2 pc
+       ON pn.cat_id = pc.ID
+
+-- Only active products
+WHERE pn.PRD_END_DATE IS NULL;
+
+
+CREATE OR ALTER VIEW gold.FACT_SALES AS
+
+SELECT 
+
+    sd.SLS_ORD_NUM        AS order_number,
+
+    pr.product_key,
+    cu.customer_key,
+
+    sd.SLS_ORDER_DT       AS order_date,
+    sd.SLS_SHIP_DT        AS ship_date,
+    sd.SLS_DUE_DT         AS due_date,
+
+    sd.SLS_SALES          AS sales_amount,
+    sd.SLS_QUANTITY       AS quantity,
+    sd.SLS_PRICE          AS price
+
+FROM silver.CRM_SALE_DETAILS sd
+
+LEFT JOIN gold.dim_products pr
+       ON sd.SLS_PROD_KEY = pr.product_number
+
+LEFT JOIN gold.dim_customers cu
+       ON sd.SLS_CUST_ID = cu.customer_id;
