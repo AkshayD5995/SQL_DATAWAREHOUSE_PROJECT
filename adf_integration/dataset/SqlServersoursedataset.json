@@ -1,0 +1,46 @@
+{
+	"name": "SqlServersoursedataset",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "onpremisessms",
+			"type": "LinkedServiceReference"
+		},
+		"annotations": [],
+		"type": "SqlServerTable",
+		"schema": [
+			{
+				"name": "CST_ID",
+				"type": "int",
+				"precision": 10
+			},
+			{
+				"name": "CST_KEY",
+				"type": "nvarchar"
+			},
+			{
+				"name": "CST_FIRSTNAME",
+				"type": "nvarchar"
+			},
+			{
+				"name": "CST_LASTNAME",
+				"type": "nvarchar"
+			},
+			{
+				"name": "CST_MARETIAL_STATUS",
+				"type": "varchar"
+			},
+			{
+				"name": "CST_GENDER",
+				"type": "nvarchar"
+			},
+			{
+				"name": "CST_CREATE_DATE",
+				"type": "date"
+			}
+		],
+		"typeProperties": {
+			"schema": "bronze",
+			"table": "CRM_CUST_INFO"
+		}
+	}
+}
