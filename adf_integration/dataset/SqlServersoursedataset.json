@@ -37,10 +37,6 @@
 				"name": "CST_CREATE_DATE",
 				"type": "date"
 			}
-		],
-		"typeProperties": {
-			"schema": "bronze",
-			"table": "CRM_CUST_INFO"
-		}
+		]
 	}
 }
