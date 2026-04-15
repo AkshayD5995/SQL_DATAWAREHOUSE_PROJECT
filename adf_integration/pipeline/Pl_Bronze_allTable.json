@@ -72,7 +72,7 @@
 									"storeSettings": {
 										"type": "AzureBlobStorageWriteSettings",
 										"copyBehavior": {
-											"value": "bronze/@{item().TABLE_NAME}/",
+											"value": "@concat('bronze/', item().TABLE_NAME)",
 											"type": "Expression"
 										}
 									},
