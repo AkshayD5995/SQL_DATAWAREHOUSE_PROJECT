@@ -7,6 +7,10 @@
 			"metadata": "Data Factory name",
 			"defaultValue": "adfakshaye"
 		},
+		"Adls_on_prem_accountKey": {
+			"type": "secureString",
+			"metadata": "Secure string for 'accountKey' of 'Adls_on_prem'"
+		},
 		"AzureBlobStorage1_connectionString": {
 			"type": "secureString",
 			"metadata": "Secure string for 'connectionString' of 'AzureBlobStorage1'"
@@ -19,9 +23,9 @@
 			"type": "secureString",
 			"metadata": "Secure string for 'password' of 'onpremisessms'"
 		},
-		"Adls_on_prem_accountKey": {
-			"type": "secureString",
-			"metadata": "Secure string for 'accountKey' of 'Adls_on_prem'"
+		"Adls_on_prem_properties_typeProperties_url": {
+			"type": "string",
+			"defaultValue": "https://adlslakeaksh.dfs.core.windows.net/"
 		},
 		"linked_servisedl_properties_typeProperties_url": {
 			"type": "string",
@@ -42,10 +46,6 @@
 		"onpremisessms_properties_typeProperties_userName": {
 			"type": "string",
 			"defaultValue": "AKSHAY\\Admin"
-		},
-		"Adls_on_prem_properties_typeProperties_url": {
-			"type": "string",
-			"defaultValue": "https://adlslakeaksh.dfs.core.windows.net/"
 		},
 		"containerUri": {
 			"type": "string",
@@ -80,11 +80,11 @@
 					"onpremisessms_password": {
 						"value": "[parameters('onpremisessms_password')]"
 					},
-					"linked_servisedl_accountKey": {
-						"value": "[parameters('linked_servisedl_accountKey')]"
-					},
 					"Adls_on_prem_accountKey": {
 						"value": "[parameters('Adls_on_prem_accountKey')]"
+					},
+					"linked_servisedl_accountKey": {
+						"value": "[parameters('linked_servisedl_accountKey')]"
 					},
 					"onpremisessms_properties_typeProperties_server": {
 						"value": "[parameters('onpremisessms_properties_typeProperties_server')]"
@@ -95,14 +95,14 @@
 					"onpremisessms_properties_typeProperties_userName": {
 						"value": "[parameters('onpremisessms_properties_typeProperties_userName')]"
 					},
+					"Adls_on_prem_properties_typeProperties_url": {
+						"value": "[parameters('Adls_on_prem_properties_typeProperties_url')]"
+					},
 					"linked_servisedl_properties_typeProperties_url": {
 						"value": "[parameters('linked_servisedl_properties_typeProperties_url')]"
 					},
 					"linkedgit_properties_typeProperties_url": {
 						"value": "[parameters('linkedgit_properties_typeProperties_url')]"
-					},
-					"Adls_on_prem_properties_typeProperties_url": {
-						"value": "[parameters('Adls_on_prem_properties_typeProperties_url')]"
 					}
 				}
 			},

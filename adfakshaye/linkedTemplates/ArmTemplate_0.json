@@ -15,13 +15,13 @@
 			"type": "secureString",
 			"metadata": "Secure string for 'password' of 'onpremisessms'"
 		},
-		"linked_servisedl_accountKey": {
-			"type": "secureString",
-			"metadata": "Secure string for 'accountKey' of 'linked_servisedl'"
-		},
 		"Adls_on_prem_accountKey": {
 			"type": "secureString",
 			"metadata": "Secure string for 'accountKey' of 'Adls_on_prem'"
+		},
+		"linked_servisedl_accountKey": {
+			"type": "secureString",
+			"metadata": "Secure string for 'accountKey' of 'linked_servisedl'"
 		},
 		"onpremisessms_properties_typeProperties_server": {
 			"type": "string",
@@ -35,6 +35,10 @@
 			"type": "string",
 			"defaultValue": "AKSHAY\\Admin"
 		},
+		"Adls_on_prem_properties_typeProperties_url": {
+			"type": "string",
+			"defaultValue": "https://adlslakeaksh.dfs.core.windows.net/"
+		},
 		"linked_servisedl_properties_typeProperties_url": {
 			"type": "string",
 			"defaultValue": "https://akshaefactory.dfs.core.windows.net/"
@@ -42,10 +46,6 @@
 		"linkedgit_properties_typeProperties_url": {
 			"type": "string",
 			"defaultValue": "https://raw.githubusercontent.com"
-		},
-		"Adls_on_prem_properties_typeProperties_url": {
-			"type": "string",
-			"defaultValue": "https://adlslakeaksh.dfs.core.windows.net/"
 		}
 	},
 	"variables": {
@@ -138,6 +138,47 @@
 			]
 		},
 		{
+			"name": "[concat(parameters('factoryName'), '/SqlServerTbBrz')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "onpremisessms",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "SqlServerTable",
+				"schema": [],
+				"typeProperties": {}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/onpremisessms')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/Adls_on_prem')]",
+			"type": "Microsoft.DataFactory/factories/linkedServices",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"type": "AzureBlobFS",
+				"typeProperties": {
+					"url": "[parameters('Adls_on_prem_properties_typeProperties_url')]",
+					"accountKey": {
+						"type": "SecureString",
+						"value": "[parameters('Adls_on_prem_accountKey')]"
+					}
+				},
+				"connectVia": {
+					"referenceName": "AutoResolveIntegrationRuntime",
+					"type": "IntegrationRuntimeReference"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/integrationRuntimes/AutoResolveIntegrationRuntime')]"
+			]
+		},
+		{
 			"name": "[concat(parameters('factoryName'), '/linked_servisedl')]",
 			"type": "Microsoft.DataFactory/factories/linkedServices",
 			"apiVersion": "2018-06-01",
@@ -182,47 +223,6 @@
 			]
 		},
 		{
-			"name": "[concat(parameters('factoryName'), '/Adls_on_prem')]",
-			"type": "Microsoft.DataFactory/factories/linkedServices",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"annotations": [],
-				"type": "AzureBlobFS",
-				"typeProperties": {
-					"url": "[parameters('Adls_on_prem_properties_typeProperties_url')]",
-					"accountKey": {
-						"type": "SecureString",
-						"value": "[parameters('Adls_on_prem_accountKey')]"
-					}
-				},
-				"connectVia": {
-					"referenceName": "AutoResolveIntegrationRuntime",
-					"type": "IntegrationRuntimeReference"
-				}
-			},
-			"dependsOn": [
-				"[concat(variables('factoryId'), '/integrationRuntimes/AutoResolveIntegrationRuntime')]"
-			]
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/SqlServerTbBrz')]",
-			"type": "Microsoft.DataFactory/factories/datasets",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"linkedServiceName": {
-					"referenceName": "onpremisessms",
-					"type": "LinkedServiceReference"
-				},
-				"annotations": [],
-				"type": "SqlServerTable",
-				"schema": [],
-				"typeProperties": {}
-			},
-			"dependsOn": [
-				"[concat(variables('factoryId'), '/linkedServices/onpremisessms')]"
-			]
-		},
-		{
 			"name": "[concat(parameters('factoryName'), '/Pq_ADLS_Desti')]",
 			"type": "Microsoft.DataFactory/factories/datasets",
 			"apiVersion": "2018-06-01",
@@ -246,6 +246,127 @@
 			},
 			"dependsOn": [
 				"[concat(variables('factoryId'), '/linkedServices/Adls_on_prem')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/PL_Load_sql_to_bronze')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "Lookup_Tb",
+						"type": "Lookup",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "SqlServerSource",
+								"sqlReaderQuery": "SELECT TABLE_SCHEMA, TABLE_NAME\nFROM INFORMATION_SCHEMA.TABLES\nWHERE TABLE_SCHEMA = 'bronze'",
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"dataset": {
+								"referenceName": "SqlServerTbBrz",
+								"type": "DatasetReference",
+								"parameters": {}
+							},
+							"firstRowOnly": false
+						}
+					},
+					{
+						"name": "ForEach1",
+						"type": "ForEach",
+						"dependsOn": [
+							{
+								"activity": "Lookup_Tb",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"items": {
+								"value": "@activity('Lookup_Tb').output.value",
+								"type": "Expression"
+							},
+							"activities": [
+								{
+									"name": "Copy data1",
+									"type": "Copy",
+									"dependsOn": [],
+									"policy": {
+										"timeout": "0.12:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"source": {
+											"type": "SqlServerSource",
+											"sqlReaderQuery": {
+												"value": "@concat('SELECT * FROM ', item().TABLE_SCHEMA, '.', item().TABLE_NAME)",
+												"type": "Expression"
+											},
+											"queryTimeout": "02:00:00",
+											"partitionOption": "None"
+										},
+										"sink": {
+											"type": "ParquetSink",
+											"storeSettings": {
+												"type": "AzureBlobFSWriteSettings"
+											},
+											"formatSettings": {
+												"type": "ParquetWriteSettings"
+											}
+										},
+										"enableStaging": false,
+										"translator": {
+											"type": "TabularTranslator",
+											"typeConversion": true,
+											"typeConversionSettings": {
+												"allowDataTruncation": true,
+												"treatBooleanAsNumber": false
+											}
+										}
+									},
+									"inputs": [
+										{
+											"referenceName": "SqlServerTbBrz",
+											"type": "DatasetReference",
+											"parameters": {}
+										}
+									],
+									"outputs": [
+										{
+											"referenceName": "Pq_ADLS_Desti",
+											"type": "DatasetReference",
+											"parameters": {}
+										}
+									]
+								}
+							]
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"annotations": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/SqlServerTbBrz')]",
+				"[concat(variables('factoryId'), '/datasets/Pq_ADLS_Desti')]"
 			]
 		}
 	]
