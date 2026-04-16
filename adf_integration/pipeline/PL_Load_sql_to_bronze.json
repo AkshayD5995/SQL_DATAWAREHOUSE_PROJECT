@@ -71,7 +71,11 @@
 								"sink": {
 									"type": "DelimitedTextSink",
 									"storeSettings": {
-										"type": "AzureBlobFSWriteSettings"
+										"type": "AzureBlobFSWriteSettings",
+										"copyBehavior": {
+											"value": "@concat(item().TABLE_NAME, '.csv')",
+											"type": "Expression"
+										}
 									},
 									"formatSettings": {
 										"type": "DelimitedTextWriteSettings",
