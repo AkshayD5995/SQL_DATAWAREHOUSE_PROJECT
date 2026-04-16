@@ -128,11 +128,7 @@
 										"sink": {
 											"type": "DelimitedTextSink",
 											"storeSettings": {
-												"type": "AzureBlobFSWriteSettings",
-												"copyBehavior": {
-													"value": "@concat(item().TABLE_NAME, '.csv')",
-													"type": "Expression"
-												}
+												"type": "AzureBlobFSWriteSettings"
 											},
 											"formatSettings": {
 												"type": "DelimitedTextWriteSettings",
@@ -192,7 +188,8 @@
 				"type": "DelimitedText",
 				"typeProperties": {
 					"location": {
-						"type": "AzureBlobFSLocation"
+						"type": "AzureBlobFSLocation",
+						"folderPath": "bronze"
 					},
 					"columnDelimiter": ",",
 					"escapeChar": "\\",
