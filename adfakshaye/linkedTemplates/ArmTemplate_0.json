@@ -237,8 +237,8 @@
 					"location": {
 						"type": "AzureBlobFSLocation",
 						"fileName": "data>parquet",
-						"folderPath": "Bronze",
-						"fileSystem": "Data"
+						"folderPath": "bronze",
+						"fileSystem": "data"
 					},
 					"compressionCodec": "snappy"
 				},
