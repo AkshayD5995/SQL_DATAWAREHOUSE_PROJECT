@@ -42,7 +42,7 @@
 				"userProperties": [],
 				"typeProperties": {
 					"items": {
-						"value": "@activity('Lookup_Tables').output.value",
+						"value": "@activity('Lookup_Tb').output.value",
 						"type": "Expression"
 					},
 					"activities": [
@@ -61,8 +61,12 @@
 							"typeProperties": {
 								"source": {
 									"type": "SqlServerSource",
-									"sqlReaderQuery": "@concat('SELECT * FROM ', item().TABLE_SCHEMA, '.', item().TABLE_NAME)",
-									"queryTimeout": "02:00:00"
+									"sqlReaderQuery": {
+										"value": "@concat('SELECT * FROM ', item().TABLE_SCHEMA, '.', item().TABLE_NAME)",
+										"type": "Expression"
+									},
+									"queryTimeout": "02:00:00",
+									"partitionOption": "None"
 								},
 								"sink": {
 									"type": "ParquetSink",
