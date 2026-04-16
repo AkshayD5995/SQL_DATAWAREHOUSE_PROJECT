@@ -61,15 +61,8 @@
 							"typeProperties": {
 								"source": {
 									"type": "SqlServerSource",
-									"queryTimeout": "02:00:00",
-									"partitionOption": {
-										"value": "@concat(item().TABLE_SCHEMA, '.', item().TABLE_NAME)",
-										"type": "Expression"
-									},
-									"partitionSettings": {
-										"partitionUpperBound": "",
-										"partitionLowerBound": ""
-									}
+									"sqlReaderQuery": "@concat('SELECT * FROM ', item().TABLE_SCHEMA, '.', item().TABLE_NAME)",
+									"queryTimeout": "02:00:00"
 								},
 								"sink": {
 									"type": "ParquetSink",
