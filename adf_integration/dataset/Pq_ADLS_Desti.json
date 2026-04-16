@@ -1,0 +1,21 @@
+{
+	"name": "Pq_ADLS_Desti",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "Adls_on_prem",
+			"type": "LinkedServiceReference"
+		},
+		"annotations": [],
+		"type": "Parquet",
+		"typeProperties": {
+			"location": {
+				"type": "AzureBlobFSLocation",
+				"fileName": "data>parquet",
+				"folderPath": "Bronze",
+				"fileSystem": "Data"
+			},
+			"compressionCodec": "snappy"
+		},
+		"schema": []
+	}
+}
